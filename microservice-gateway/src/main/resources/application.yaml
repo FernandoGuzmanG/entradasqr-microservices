@@ -1,0 +1,45 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: microservice-gateway
+  config:
+    import: optional:configserver:http://localhost:8888
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+      routes:
+        - id: microservice-usuario
+          uri: lb://microservice-usuarios
+          predicates:
+            - Path=/api/usuarios/**
+          filters:
+            - RewritePath=/api/usuarios/(?<segment>.*), /api/usuarios/$\{segment}
+
+        - id: microservice-eventos
+          uri: lb://microservice-eventos
+          predicates:
+            - Path=/api/eventos/**
+          filters:
+            - RewritePath=/api/eventos/(?<segment>.*), /api/eventos/$\{segment}
+
+        - id: microservice-ticketing
+          uri: lb://microservice-ticketing
+          predicates:
+            - Path=/api/tipos-entrada/**, /api/invitados/**, /api/entradas/**
+
+        - id: microservice-comunicaciones
+          uri: lb://microservice-comunicaciones
+          predicates:
+            - Path=/api/notificaciones/**
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+
+jwt:
+  secret: c3VwZXJTZWNyZXRrZXlPdXJhR3JpZFRlY2huT2ZDb2RlMjUyNlNhbWFsQ29kZQ==

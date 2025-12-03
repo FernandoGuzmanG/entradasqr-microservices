@@ -1,0 +1,50 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: microservice-comunicaciones
+
+  config:
+    import: optional:configserver:http://localhost:8888
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/comunicacionesDB
+    username: root
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create
+    database: mysql
+    database-platform: org.hibernate.dialect.MySQL8Dialect
+
+  # --- CONFIGURACIÓN DE CORREO CORREGIDA ---
+  mail:
+    host: localhost
+    # CRÍTICO: Cambiar a 1025 (Puerto SMTP de Mailpit)
+    port: 1025
+    username:
+    password:
+    protocol: smtp
+
+    # Mover test-connection aquí y agregar debug
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+            required: false
+          # Esto ya estaba bien, pero se mantiene en properties
+          debug: true
+    test-connection: true # Mantenemos esta prueba a nivel de Spring Boot
+
+
+eureka:
+  instance:
+    hostname: localhost
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
