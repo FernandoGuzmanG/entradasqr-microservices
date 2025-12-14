@@ -1,6 +1,7 @@
 package com.microservice.usuarios.controller;
 
 import com.microservice.usuarios.dto.LoginRequest;
+import com.microservice.usuarios.dto.LoginResponse; // Importar el nuevo DTO
 import com.microservice.usuarios.dto.UsuarioRegistroRequest;
 import com.microservice.usuarios.dto.UsuarioResponse;
 import com.microservice.usuarios.dto.UsuarioUpdateRequest;
@@ -29,9 +30,9 @@ public class UsuarioController {
             summary = "Registrar Nuevo Usuario",
             description = "Crea una nueva cuenta de usuario en el sistema. Retorna el perfil básico del usuario creado.",
             responses = {
-                    @ApiResponse(responseCode = "201", description = "Usuario registrado con éxito.",
-                            content = @Content(schema = @Schema(implementation = UsuarioResponse.class))),
-                    @ApiResponse(responseCode = "400", description = "Datos inválidos o correo/RUT ya registrado.")
+                    @ApiResponse(responseCode = "201", description = "Usuario registrado con éxito."),
+                    @ApiResponse(responseCode = "409", description = "El correo o RUT ya están registrados."),
+                    @ApiResponse(responseCode = "400", description = "Datos inválidos.")
             }
     )
     @PostMapping("/registrar")
@@ -46,18 +47,20 @@ public class UsuarioController {
             summary = "Autenticación de Usuario (Login)",
             description = "Valida las credenciales del usuario y retorna un token JWT para la sesión.",
             responses = {
+                    // Actualizado: Referencia a LoginResponse en la documentación
                     @ApiResponse(responseCode = "200", description = "Login exitoso. Retorna JWT.",
-                            content = @Content(schema = @Schema(type = "string", example = "eyJhbGciOiJIUzI1Ni..."))),
+                            content = @Content(schema = @Schema(implementation = LoginResponse.class))),
                     @ApiResponse(responseCode = "401", description = "Credenciales inválidas (correo o contraseña)."),
                     @ApiResponse(responseCode = "404", description = "Usuario no encontrado.")
             }
     )
     @PostMapping("/login")
-    public ResponseEntity<String> login(
+    // Actualizado: Cambio de String a LoginResponse
+    public ResponseEntity<LoginResponse> login(
             @RequestBody LoginRequest request) {
 
-        String token = usuarioService.login(request.getCorreo(), request.getPassword());
-        return ResponseEntity.ok(token);
+        LoginResponse response = usuarioService.login(request.getCorreo(), request.getPassword());
+        return ResponseEntity.ok(response);
     }
 
     @Operation(
@@ -92,40 +95,51 @@ public class UsuarioController {
         return ResponseEntity.ok(usuario);
     }
 
+    // Endpoint de perfil (GET)
     @Operation(
             summary = "Obtener Perfil de Usuario (App)",
             description = "Retorna la información del perfil del usuario (ID, nombres, correo, etc.) mapeada a un DTO de respuesta. Ideal para la pantalla de Perfil en la App.",
             responses = {
-                    @ApiResponse(responseCode = "200", description = "Perfil encontrado.",
-                            content = @Content(schema = @Schema(implementation = UsuarioResponse.class))),
-                    @ApiResponse(responseCode = "404", description = "Usuario no encontrado."),
-                    @ApiResponse(responseCode = "403", description = "Acceso denegado (si la seguridad JWT no permite ver el perfil de otro).")
+                    @ApiResponse(responseCode = "200", description = "Perfil encontrado."),
+                    @ApiResponse(responseCode = "401", description = "Token o ID de usuario faltante."),
+                    @ApiResponse(responseCode = "404", description = "Usuario no encontrado.")
             }
     )
     @GetMapping("/perfil")
     public ResponseEntity<UsuarioResponse> getProfile(
-            @Parameter(description = "ID del usuario inyectado por el Gateway.")
-            @RequestHeader(value = "X-User-ID") Long id) {
+            @Parameter(description = "ID del usuario inyectado por el Gateway.", required = true)
+            @RequestHeader(value = "X-User-ID", required = false) Long id) { // Hacemos required = false para manejar el error 401 aquí
+
+        if (id == null) {
+            // Manejamos la ausencia de ID de forma explícita (simulando fallo de autenticación/gateway)
+            return new ResponseEntity("ID de usuario (X-User-ID) requerido para acceder al perfil.", HttpStatus.UNAUTHORIZED);
+        }
 
         UsuarioResponse profile = usuarioService.getProfile(id);
         return ResponseEntity.ok(profile);
     }
 
+    // Endpoint de actualización de perfil (PUT)
     @Operation(
             summary = "Actualizar Perfil de Usuario",
             description = "Permite actualizar datos básicos del perfil (RUT, nombres, apellidos, teléfono). Los campos nulos en la petición se ignoran.",
             responses = {
-                    @ApiResponse(responseCode = "200", description = "Perfil actualizado con éxito.",
-                            content = @Content(schema = @Schema(implementation = UsuarioResponse.class))),
+                    @ApiResponse(responseCode = "200", description = "Perfil actualizado con éxito."),
+                    @ApiResponse(responseCode = "401", description = "Token o ID de usuario faltante."),
                     @ApiResponse(responseCode = "404", description = "Usuario no encontrado."),
-                    @ApiResponse(responseCode = "403", description = "Acceso denegado.")
+                    @ApiResponse(responseCode = "400", description = "Datos inválidos.")
             }
     )
     @PutMapping("/perfil")
     public ResponseEntity<UsuarioResponse> updateProfile(
-            @Parameter(description = "ID del usuario inyectado por el Gateway.")
-            @RequestHeader(value = "X-User-ID") Long id,
+            @Parameter(description = "ID del usuario inyectado por el Gateway.", required = true)
+            @RequestHeader(value = "X-User-ID", required = false) Long id, // Hacemos required = false para manejar el error 401 aquí
             @RequestBody UsuarioUpdateRequest request) {
+
+        if (id == null) {
+            // Manejamos la ausencia de ID de forma explícita (simulando fallo de autenticación/gateway)
+            return new ResponseEntity("ID de usuario (X-User-ID) requerido para actualizar el perfil.", HttpStatus.UNAUTHORIZED);
+        }
 
         UsuarioResponse updatedProfile = usuarioService.updateProfile(id, request);
         return ResponseEntity.ok(updatedProfile);

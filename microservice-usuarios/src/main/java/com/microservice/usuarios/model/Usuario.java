@@ -22,7 +22,7 @@ public class Usuario {
     @Schema(description = "Identificador único del usuario.", example = "1")
     private Long idUsuario;
 
-    @Column(name = "rut", nullable = false, unique = true, length = 12)
+    @Column(name = "rut", nullable = false, unique = true, length = 15)
     @Schema(description = "Rol Único Tributario (identificador nacional).", example = "12345678-9", required = true)
     private String rut;
 

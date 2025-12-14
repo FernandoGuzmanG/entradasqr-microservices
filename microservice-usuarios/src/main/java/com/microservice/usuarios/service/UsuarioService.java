@@ -1,5 +1,6 @@
 package com.microservice.usuarios.service;
 
+import com.microservice.usuarios.dto.LoginResponse;
 import com.microservice.usuarios.dto.UsuarioRegistroRequest;
 import com.microservice.usuarios.dto.UsuarioResponse;
 import com.microservice.usuarios.dto.UsuarioUpdateRequest;
@@ -38,6 +39,10 @@ public class UsuarioService {
             throw new IllegalArgumentException("El correo ya está registrado.");
         }
 
+        if (usuarioRepository.findByRut(request.getRut()).isPresent()) {
+            throw new IllegalArgumentException("El RUT ya está registrado.");
+        }
+
         Usuario nuevoUsuario = Usuario.builder()
                 .rut(request.getRut())
                 .correo(request.getCorreo())
@@ -54,15 +59,17 @@ public class UsuarioService {
         return mapToResponse(savedUser);
     }
 
-    public String login(String correo, String password) {
+    public LoginResponse login(String correo, String password) {
         Usuario usuario = usuarioRepository.findByCorreo(correo)
                 .orElseThrow(() -> new NoSuchElementException("Credenciales inválidas."));
 
         if (!passwordEncoder.matches(password, usuario.getClaveHash())) {
             throw new IllegalArgumentException("Credenciales inválidas.");
         }
+        String token = jwtUtil.generateToken(usuario);
+        LoginResponse response = new LoginResponse(token);
 
-        return jwtUtil.generateToken(usuario);
+        return response;
     }
 
     public Usuario getUsuarioById(Long idUsuario) {
@@ -82,16 +89,9 @@ public class UsuarioService {
 
     public UsuarioResponse updateProfile(Long idUsuario, UsuarioUpdateRequest request) {
         Usuario usuario = getUsuarioById(idUsuario);
-
-        if (request.getNombres() != null) {
-            usuario.setNombres(request.getNombres());
-        }
-        if (request.getApellidos() != null) {
-            usuario.setApellidos(request.getApellidos());
-        }
-        if (request.getTelefono() != null) {
-            usuario.setTelefono(request.getTelefono());
-        }
+        usuario.setNombres(request.getNombres());
+        usuario.setApellidos(request.getApellidos());
+        usuario.setTelefono(request.getTelefono());
 
         Usuario updatedUser = usuarioRepository.save(usuario);
 

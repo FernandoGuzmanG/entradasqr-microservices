@@ -35,7 +35,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         String path = request.getPath().toString();
 
         if (path.startsWith("/api/usuarios/login")
-                || path.startsWith("/api/usuarios/register")) {
+                || path.startsWith("/api/usuarios/registrar")) {
             return chain.filter(exchange);
         }
 
