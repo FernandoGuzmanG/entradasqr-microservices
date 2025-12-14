@@ -10,6 +10,8 @@ import com.microservice.ticketing.repository.InvitadoRepository;
 import com.microservice.ticketing.repository.EntradaEmitidaRepository;
 import lombok.RequiredArgsConstructor;
 import jakarta.transaction.Transactional;
+
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -148,7 +150,7 @@ public class TipoEntradaService {
 
         // 2. ELIMINACIÓN DE DATOS ASOCIADOS (CASCADA MANUAL)
         entradaEmitidaRepository.deleteAll(entradaEmitidaRepository.findAllByIdTipoEntrada(idTipoEntrada));
-        invitadoRepository.deleteAll(invitadoRepository.findAllByIdTipoEntrada(idTipoEntrada));
+        invitadoRepository.deleteAll(invitadoRepository.findAllByIdTipoEntrada(idTipoEntrada, Sort.by(Sort.Direction.DESC, "fechaCreacion")));
 
         // 3. ELIMINAR TIPO DE ENTRADA
         tipoEntradaRepository.deleteById(idTipoEntrada);

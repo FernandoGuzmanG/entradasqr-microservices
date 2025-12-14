@@ -1,8 +1,6 @@
 package com.microservice.eventos.controller;
 
-import com.microservice.eventos.dto.EventoFiltroRequest;
-import com.microservice.eventos.dto.EventoResponse;
-import com.microservice.eventos.dto.StaffAsignacionRequest;
+import com.microservice.eventos.dto.*;
 import com.microservice.eventos.model.Evento;
 import com.microservice.eventos.model.StaffEvento;
 import com.microservice.eventos.service.EventoService;
@@ -27,6 +25,37 @@ import java.util.Set;
 public class EventoController {
 
     private final EventoService eventoService;
+
+    @Operation(summary = "Obtener Dashboard de Usuario", description = "Retorna estadísticas y próximos eventos para la pantalla de inicio.")
+    @GetMapping("/dashboard")
+    public ResponseEntity<DashboardResponse> getDashboard(
+            @RequestHeader("X-User-ID") Long userId) {
+        return ResponseEntity.ok(eventoService.obtenerDashboard(userId));
+    }
+
+    // --- INVITACIONES STAFF ---
+
+    @Operation(summary = "Listar Invitaciones Pendientes", description = "Muestra los eventos a los que el usuario ha sido invitado como Staff pero aún no acepta.")
+    @GetMapping("/invitaciones")
+    public ResponseEntity<List<EventoResponse>> getInvitacionesPendientes(
+            @RequestHeader("X-User-ID") Long userId) {
+        return ResponseEntity.ok(eventoService.listarInvitacionesPendientes(userId));
+    }
+
+    @Operation(summary = "Responder Invitación de Staff", description = "Permite al usuario aceptar (true) o rechazar (false) una invitación.")
+    @PostMapping("/invitaciones/{idEvento}/responder")
+    public ResponseEntity<Void> responderInvitacion(
+            @PathVariable Long idEvento,
+            @RequestParam boolean aceptar,
+            @RequestHeader("X-User-ID") Long userId) {
+        
+        try {
+            eventoService.responderInvitacion(idEvento, userId, aceptar);
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException | java.util.NoSuchElementException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
 
 
     @Operation(
@@ -223,5 +252,36 @@ public class EventoController {
 
         Set<String> permisos = eventoService.obtenerPermisosStaff(idEvento, idUsuario);
         return ResponseEntity.ok(permisos);
+    }
+
+    @Operation(
+            summary = "Listar Staff del Evento",
+            description = "Obtiene la lista completa de miembros del staff para un evento específico, enriquecida con información personal (nombres, correo) obtenida del microservicio de Usuarios. Solo el Owner del evento puede realizar esta acción.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Lista de staff retornada con éxito.",
+                            content = @Content(mediaType = "application/json",
+                                    schema = @Schema(implementation = StaffMemberResponse.class))),
+                    @ApiResponse(responseCode = "403", description = "Acceso denegado. El usuario solicitante no es el Owner del evento."),
+                    @ApiResponse(responseCode = "404", description = "Evento no encontrado o error al recuperar datos.")
+            }
+    )
+    @GetMapping("/{idEvento}/staff")
+    public ResponseEntity<List<StaffMemberResponse>> listarStaffDelEvento(
+            @Parameter(description = "ID del evento del cual se quiere listar el staff.", required = true, example = "1")
+            @PathVariable("idEvento") Long idEvento,
+
+            @Parameter(description = "ID del usuario que realiza la solicitud (debe ser el Owner). Inyectado por el Gateway.", required = true)
+            @RequestHeader(value = "X-User-ID") Long userId) {
+
+        try {
+            List<StaffMemberResponse> staffList = eventoService.listarStaffPorEvento(idEvento, userId);
+            return ResponseEntity.ok(staffList);
+        } catch (SecurityException e) {
+            // Retorna 403 si el usuario no es el Owner
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        } catch (Exception e) {
+            // Retorna 404 si el evento no existe o hay un error de inconsistencia
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
     }
 }

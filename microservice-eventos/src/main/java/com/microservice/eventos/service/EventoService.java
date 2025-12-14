@@ -1,17 +1,18 @@
 package com.microservice.eventos.service;
 
 import com.microservice.eventos.client.UsuarioClient;
-import com.microservice.eventos.dto.EventoFiltroRequest;
-import com.microservice.eventos.dto.EventoResponse;
-import com.microservice.eventos.dto.StaffAsignacionRequest;
-import com.microservice.eventos.dto.UsuarioDto;
+import com.microservice.eventos.dto.*;
 import com.microservice.eventos.model.*;
+import com.microservice.eventos.model.StaffEvento.EstadoInvitacion;
 import com.microservice.eventos.repository.*;
+
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled; // Importación necesaria
 import org.springframework.stereotype.Service;
-
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -27,6 +28,113 @@ public class EventoService {
     private final StaffEventoRepository staffEventoRepository;
     private final CatalogoPermisoRepository catalogoPermisoRepository;
     private final UsuarioClient usuarioClient;
+
+    public DashboardResponse obtenerDashboard(Long userId) {
+        long eventosPropios = eventoRepository.countByOwnerId(userId);
+        long eventosStaff = staffEventoRepository.countByUsuarioIdAndActivoTrue(userId);
+        long invitacionesPendientes = staffEventoRepository.countByUsuarioIdAndEstadoInvitacion(userId, EstadoInvitacion.PENDIENTE);
+
+        // Obtener próximos 5 eventos
+        List<Evento> proximos = eventoRepository.findProximosEventos(userId, LocalDate.now(), LocalTime.now());
+        
+        // Mapear a DTO con rol
+        List<EventoResponse> proximosDto = proximos.stream()
+                .limit(5)
+                .map(e -> {
+                    EventoResponse dto = EventoResponse.fromEntity(e);
+                    // Determinar rol rápidamente
+                    if (e.getOwnerId().equals(userId)) {
+                        dto.setRelacionUsuario("OWNER");
+                    } else {
+                        dto.setRelacionUsuario("STAFF");
+                    }
+                    return dto;
+                }).collect(Collectors.toList());
+
+        return DashboardResponse.builder()
+                .cantidadEventosPropios(eventosPropios)
+                .cantidadEventosStaff(eventosStaff)
+                .cantidadInvitacionesPendientes(invitacionesPendientes)
+                .proximosEventos(proximosDto)
+                .build();
+    }
+
+    public StaffEvento asignarStaffYPermisos(StaffAsignacionRequest request, Long ownerId) {
+        // 1. Validar Owner
+        if (!esOwner(request.getIdEvento(), ownerId)) {
+            throw new SecurityException("Acceso denegado. Solo el Owner puede invitar Staff.");
+        }
+
+        // 2. Validar Usuario Staff
+        UsuarioDto staffDto = usuarioClient.getUsuarioByCorreo(request.getCorreoUsuarioStaff());
+        if (staffDto == null || !"Activo".equalsIgnoreCase(staffDto.getEstado())) {
+            throw new IllegalArgumentException("El usuario a invitar no existe o no está activo.");
+        }
+        
+        // No permitir auto-invitación
+        if (staffDto.getIdUsuario().equals(ownerId)) {
+             throw new IllegalArgumentException("El Owner no puede invitarse a sí mismo como Staff.");
+        }
+
+        Evento evento = eventoRepository.findById(request.getIdEvento())
+                .orElseThrow(() -> new NoSuchElementException("Evento no encontrado."));
+
+        Set<CatalogoPermiso> permisos = request.getPermisos().stream()
+                .map(nombre -> catalogoPermisoRepository.findByNombrePermiso(nombre)
+                        .orElseThrow(() -> new NoSuchElementException("Permiso no válido: " + nombre)))
+                .collect(Collectors.toSet());
+
+        // 3. Crear o Actualizar Invitación
+        StaffEvento staffEvento = staffEventoRepository.findByEvento_IdEventoAndUsuarioId(
+                        request.getIdEvento(), staffDto.getIdUsuario())
+                .orElse(StaffEvento.builder()
+                        .evento(evento)
+                        .usuarioId(staffDto.getIdUsuario())
+                        .fechaAsignacion(LocalDateTime.now())
+                        .activo(false) // Inicia inactivo hasta que acepte
+                        .estadoInvitacion(EstadoInvitacion.PENDIENTE) // Estado inicial
+                        .build());
+
+        if (!staffEvento.isActivo() && staffEvento.getEstadoInvitacion() != EstadoInvitacion.ACEPTADO) {
+             staffEvento.setEstadoInvitacion(EstadoInvitacion.PENDIENTE);
+             staffEvento.setActivo(false);
+        }
+        
+        staffEvento.setPermisos(permisos);
+
+        return staffEventoRepository.save(staffEvento);
+    }
+
+    public List<EventoResponse> listarInvitacionesPendientes(Long userId) {
+        List<StaffEvento> invitaciones = staffEventoRepository.findByUsuarioIdAndEstadoInvitacion(userId, EstadoInvitacion.PENDIENTE);
+        
+        return invitaciones.stream()
+                .map(inv -> {
+                    EventoResponse dto = EventoResponse.fromEntity(inv.getEvento());
+                    dto.setRelacionUsuario("INVITADO");
+                    return dto;
+                })
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void responderInvitacion(Long idEvento, Long userId, boolean aceptar) {
+        StaffEvento invitacion = staffEventoRepository.findByEvento_IdEventoAndUsuarioId(idEvento, userId)
+                .orElseThrow(() -> new NoSuchElementException("Invitación no encontrada."));
+
+        if (invitacion.getEstadoInvitacion() != EstadoInvitacion.PENDIENTE) {
+            throw new IllegalArgumentException("La invitación no está en estado pendiente.");
+        }
+
+        if (aceptar) {
+            invitacion.setEstadoInvitacion(EstadoInvitacion.ACEPTADO);
+            invitacion.setActivo(true);
+        } else {
+            invitacion.setEstadoInvitacion(EstadoInvitacion.RECHAZADO);
+            invitacion.setActivo(false);
+        }
+        staffEventoRepository.save(invitacion);
+    }
 
 
     public Evento crearEvento(Evento evento, Long ownerId) {
@@ -105,37 +213,6 @@ public class EventoService {
     }
 
 
-    public StaffEvento asignarStaffYPermisos(StaffAsignacionRequest request, Long ownerId) {
-        if (!esOwner(request.getIdEvento(), ownerId)) {
-            throw new SecurityException("Acceso denegado. Solo el Owner puede asignar Staff.");
-        }
-
-        UsuarioDto staffDto = usuarioClient.getUsuarioByCorreo(request.getCorreoUsuarioStaff());
-        if (staffDto == null || !"Activo".equalsIgnoreCase(staffDto.getEstado())) {
-            throw new IllegalArgumentException("El usuario a asignar como Staff no existe o no está activo.");
-        }
-
-        Evento evento = eventoRepository.findById(request.getIdEvento())
-                .orElseThrow(() -> new NoSuchElementException("Evento no encontrado."));
-
-        Set<CatalogoPermiso> permisos = request.getPermisos().stream()
-                .map(nombre -> catalogoPermisoRepository.findByNombrePermiso(nombre)
-                        .orElseThrow(() -> new NoSuchElementException("Permiso no válido: " + nombre)))
-                .collect(Collectors.toSet());
-
-        StaffEvento staffEvento = staffEventoRepository.findByEvento_IdEventoAndUsuarioId(
-                        request.getIdEvento(), staffDto.getIdUsuario())
-                .orElse(StaffEvento.builder()
-                        .evento(evento)
-                        .usuarioId(staffDto.getIdUsuario())
-                        .fechaAsignacion(LocalDateTime.now())
-                        .build());
-
-        staffEvento.setActivo(true);
-        staffEvento.setPermisos(permisos);
-
-        return staffEventoRepository.save(staffEvento);
-    }
 
     public void revocarStaff(Long idEvento, Long staffUsuarioId, Long ownerId) {
         if (!esOwner(idEvento, ownerId)) {
@@ -238,5 +315,53 @@ public class EventoService {
                     return dto;
                 })
                 .collect(Collectors.toList());
+    }
+
+    public List<StaffMemberResponse> listarStaffPorEvento(Long idEvento, Long usuarioSolicitanteId) {
+        
+        // 1. Validar que el solicitante sea el Owner (Seguridad)
+        if (!esOwner(idEvento, usuarioSolicitanteId)) {
+             throw new SecurityException("Acceso denegado. Solo el Owner puede ver la lista completa de Staff.");
+        }
+
+        // 2. Obtener la lista de Staff del repositorio local
+        List<StaffEvento> staffList = staffEventoRepository.findAllByEvento_IdEvento(idEvento);
+
+        // 3. Mapear y enriquecer con datos de usuario (Llamada Feign)
+        return staffList.stream().map(staff -> {
+            
+            String nombreCompleto = "Usuario no encontrado";
+            String correo = "Sin correo";
+            
+            try {
+                // Llamada al Microservicio de Usuarios
+                UsuarioDto usuarioInfo = usuarioClient.getUsuarioById(staff.getUsuarioId());
+                if (usuarioInfo != null) {
+                    nombreCompleto = usuarioInfo.getNombres() + " " + usuarioInfo.getApellidos();
+                    correo = usuarioInfo.getCorreo();
+                }
+            } catch (Exception e) {
+                // Si falla la comunicación, mostramos datos por defecto pero no rompemos el flujo
+                System.err.println("Error al obtener datos del usuario " + staff.getUsuarioId() + ": " + e.getMessage());
+            }
+
+            // Obtener nombres de permisos
+            Set<String> permisosNombres = staff.getPermisos().stream()
+                    .map(CatalogoPermiso::getNombrePermiso)
+                    .collect(Collectors.toSet());
+
+            // Construir DTO
+            return StaffMemberResponse.builder()
+                    .idStaff(staff.getIdStaff())
+                    .usuarioId(staff.getUsuarioId())
+                    .nombreCompleto(nombreCompleto)
+                    .correo(correo)
+                    .fechaAsignacion(staff.getFechaAsignacion())
+                    .activo(staff.isActivo())
+                    .estadoInvitacion(staff.getEstadoInvitacion().name())
+                    .permisos(permisosNombres)
+                    .build();
+
+        }).collect(Collectors.toList());
     }
 }

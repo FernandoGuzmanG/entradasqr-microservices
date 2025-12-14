@@ -17,7 +17,7 @@ import java.util.Set;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Schema(description = "Relación entre un Evento y un Usuario Staff, incluyendo sus permisos.")
+@Schema(description = "Relación entre un Evento y un Usuario Staff, incluyendo sus permisos y estado de invitación.")
 public class StaffEvento {
 
     @Id
@@ -35,12 +35,17 @@ public class StaffEvento {
     private Long usuarioId;
 
     @Column(name = "fecha_asignacion")
-    @Schema(description = "Fecha y hora en que se realizó la asignación.")
+    @Schema(description = "Fecha y hora en que se realizó la invitación/asignación.")
     private LocalDateTime fechaAsignacion;
 
     @Column(nullable = false)
-    @Schema(description = "Estado de la asignación (activo = true, inactivo/revocado = false).", required = true)
+    @Schema(description = "Indica si el staff está activo en el evento (debe haber aceptado la invitación).", required = true)
     private boolean activo;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "estado_invitacion", nullable = false)
+    @Schema(description = "Estado del flujo de invitación (PENDIENTE, ACEPTADO, RECHAZADO).", example = "PENDIENTE")
+    private EstadoInvitacion estadoInvitacion;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
@@ -50,4 +55,10 @@ public class StaffEvento {
     )
     @Schema(description = "Conjunto de permisos específicos que el Staff tiene para este evento.")
     private Set<CatalogoPermiso> permisos;
+
+    public enum EstadoInvitacion {
+        PENDIENTE,
+        ACEPTADO,
+        RECHAZADO
+    }
 }

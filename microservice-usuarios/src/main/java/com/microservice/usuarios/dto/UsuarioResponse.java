@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 @Data
 @Builder
 public class UsuarioResponse {
+    private Long id;
     private String rut;
     private String correo;
     private String nombres;

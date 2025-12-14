@@ -26,6 +26,7 @@ public class UsuarioService {
 
     private UsuarioResponse mapToResponse(Usuario usuario) {
         return UsuarioResponse.builder()
+                .id(usuario.getIdUsuario())
                 .correo(usuario.getCorreo())
                 .nombres(usuario.getNombres())
                 .apellidos(usuario.getApellidos())

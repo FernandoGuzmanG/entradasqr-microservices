@@ -1,6 +1,5 @@
 package com.microservice.ticketing.controller;
 
-import com.microservice.ticketing.dto.InvitadoBulkRequest;
 import com.microservice.ticketing.dto.InvitadoRequest;
 import com.microservice.ticketing.model.Invitado;
 import com.microservice.ticketing.service.InvitadoService;
@@ -23,6 +22,31 @@ public class InvitadoController {
 
     private final InvitadoService invitadoService;
 
+    // --- Endpoints de BÚSQUEDA y FILTRADO ---
+
+    @Operation(summary = "Filtrar y Ordenar Invitados",
+            description = "Busca invitados por un término general (coincidencia en nombre O correo) y permite ordenar los resultados por fecha de creación.")
+    @ApiResponse(responseCode = "200", description = "Lista de invitados filtrada y ordenada.")
+    @ApiResponse(responseCode = "204", description = "No se encontraron resultados.")
+    @GetMapping("/buscar")
+    public ResponseEntity<List<Invitado>> filtrarInvitados(
+            @Parameter(description = "ID del tipo de entrada (Obligatorio).", required = true)
+            @RequestParam Long idTipoEntrada,
+
+            @Parameter(description = "Término de búsqueda (busca coincidencias en nombre O correo).")
+            @RequestParam(required = false) String termino,
+
+            @Parameter(description = "Ordenamiento por fecha de creación: 'ASC' (más antiguos primero) o 'DESC' (más recientes primero). Por defecto es DESC.")
+            @RequestParam(required = false, defaultValue = "DESC") String ordenFecha) {
+
+        List<Invitado> invitados = invitadoService.filtrarInvitados(idTipoEntrada, termino, ordenFecha);
+        
+        if (invitados.isEmpty()) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(invitados);
+    }
+
     // --- Endpoints de GESTIÓN (CRUD - Permitido a OWNER y STAFF con permiso "registrar_invitados") ---
 
     @PostMapping
@@ -39,9 +63,9 @@ public class InvitadoController {
             Invitado invitado = invitadoService.crearInvitado(request, usuarioId);
             return new ResponseEntity<>(invitado, HttpStatus.CREATED); // 201
         } catch (SecurityException e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.FORBIDDEN); // 403
+            return new ResponseEntity(HttpStatus.FORBIDDEN); // 403
         } catch (Exception e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST); // 400
+            return new ResponseEntity(HttpStatus.BAD_REQUEST); // 400
         }
     }
 
@@ -62,9 +86,9 @@ public class InvitadoController {
             Invitado modificado = invitadoService.modificarInvitado(idInvitado, usuarioId, request);
             return ResponseEntity.ok(modificado); // 200
         } catch (SecurityException e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.FORBIDDEN); // 403
+            return new ResponseEntity(HttpStatus.FORBIDDEN); // 403
         } catch (RuntimeException e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.NOT_FOUND); // 404
+            return new ResponseEntity(HttpStatus.NOT_FOUND); // 404
         }
     }
 
@@ -86,9 +110,9 @@ public class InvitadoController {
             Invitado modificado = invitadoService.modificarCantidadEntradas(idInvitado, usuarioId, cantidad);
             return ResponseEntity.ok(modificado); // 200
         } catch (SecurityException e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.FORBIDDEN); // 403
+            return new ResponseEntity(HttpStatus.FORBIDDEN); // 403
         } catch (RuntimeException e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST); // 400 (por reglas de negocio)
+            return new ResponseEntity(HttpStatus.BAD_REQUEST); // 400 (por reglas de negocio)
         }
     }
 
@@ -122,9 +146,9 @@ public class InvitadoController {
             invitadoService.eliminarInvitado(idInvitado, usuarioId);
             return ResponseEntity.noContent().build(); // 204
         } catch (SecurityException e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.FORBIDDEN); // 403
+            return new ResponseEntity(HttpStatus.FORBIDDEN); // 403
         } catch (RuntimeException e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.NOT_FOUND); // 404
+            return new ResponseEntity(HttpStatus.NOT_FOUND); // 404
         }
     }
 
@@ -145,29 +169,37 @@ public class InvitadoController {
             Invitado invitadoEmitido = invitadoService.emitirEntradasPorId(idInvitado, ownerId);
             return ResponseEntity.ok(invitadoEmitido); // 200
         } catch (SecurityException e) {
-            return new ResponseEntity("Emisión denegada. " + e.getMessage(), HttpStatus.FORBIDDEN); // 403
+            return new ResponseEntity(HttpStatus.FORBIDDEN); // 403
         } catch (RuntimeException e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST); // 400 (Stock, ya emitido)
+            return new ResponseEntity(HttpStatus.BAD_REQUEST); // 400 (Stock, ya emitido)
         }
     }
 
-    @PostMapping("/emitir/bulk")
-    @Operation(summary = "Registra y emite tickets a múltiples invitados de forma masiva.",
-            description = "Procesa una lista de InvitadoRequest, valida stock total, crea los registros y dispara el envío. EXCLUSIVO OWNER.")
-    @ApiResponse(responseCode = "201", description = "Lista de invitados creados y tickets emitidos.")
+    @PostMapping("/emitir/tipo-entrada/{idTipoEntrada}")
+    @Operation(summary = "Emisión Masiva Automática por Tipo de Entrada.",
+            description = "Busca TODOS los invitados de un tipo de entrada que estén PENDIENTES o con ERROR y procesa su emisión. EXCLUSIVO OWNER.")
+    @ApiResponse(responseCode = "200", description = "Lista de invitados procesados.")
+    @ApiResponse(responseCode = "204", description = "No había invitados pendientes para procesar.")
     @ApiResponse(responseCode = "403", description = "Acceso denegado. No es el Owner.")
     @ApiResponse(responseCode = "400", description = "Error de stock insuficiente.")
-    public ResponseEntity<List<Invitado>> emitirEntradasMasivas(
-            @RequestBody InvitadoBulkRequest request,
+    public ResponseEntity<List<Invitado>> emitirEntradasMasivasPorTipo(
+            @Parameter(description = "ID del Tipo de Entrada.")
+            @PathVariable Long idTipoEntrada,
             @Parameter(description = "ID del usuario Owner del evento.", required = true)
             @RequestHeader(value = "X-User-ID") Long ownerId) {
+        
         try {
-            List<Invitado> invitadosCreados = invitadoService.emitirEntradasMasivas(request, ownerId);
-            return new ResponseEntity<>(invitadosCreados, HttpStatus.CREATED); // 201
+            List<Invitado> invitadosProcesados = invitadoService.emitirEntradasMasivas(idTipoEntrada, ownerId);
+            
+            if (invitadosProcesados.isEmpty()) {
+                return ResponseEntity.noContent().build();
+            }
+            return ResponseEntity.ok(invitadosProcesados); // 200 OK
+            
         } catch (SecurityException e) {
-            return new ResponseEntity("Emisión denegada. " + e.getMessage(), HttpStatus.FORBIDDEN); // 403
+            return new ResponseEntity(HttpStatus.FORBIDDEN); // 403
         } catch (RuntimeException e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST); // 400 (Stock insuficiente)
+            return new ResponseEntity(HttpStatus.BAD_REQUEST); // 400 (Stock insuficiente)
         }
     }
 }
