@@ -102,9 +102,10 @@ public class UsuarioController {
                     @ApiResponse(responseCode = "403", description = "Acceso denegado (si la seguridad JWT no permite ver el perfil de otro).")
             }
     )
-    @GetMapping("/perfil/{id}")
+    @GetMapping("/perfil")
     public ResponseEntity<UsuarioResponse> getProfile(
-            @Parameter(description = "ID del usuario cuyo perfil se solicita.") @PathVariable("id") Long id) {
+            @Parameter(description = "ID del usuario inyectado por el Gateway.")
+            @RequestHeader(value = "X-User-ID") Long id) {
 
         UsuarioResponse profile = usuarioService.getProfile(id);
         return ResponseEntity.ok(profile);
@@ -120,9 +121,10 @@ public class UsuarioController {
                     @ApiResponse(responseCode = "403", description = "Acceso denegado.")
             }
     )
-    @PutMapping("/perfil/{id}")
+    @PutMapping("/perfil")
     public ResponseEntity<UsuarioResponse> updateProfile(
-            @Parameter(description = "ID del usuario a actualizar.") @PathVariable("id") Long id,
+            @Parameter(description = "ID del usuario inyectado por el Gateway.")
+            @RequestHeader(value = "X-User-ID") Long id,
             @RequestBody UsuarioUpdateRequest request) {
 
         UsuarioResponse updatedProfile = usuarioService.updateProfile(id, request);

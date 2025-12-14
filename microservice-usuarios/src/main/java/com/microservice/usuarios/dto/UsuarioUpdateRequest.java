@@ -7,9 +7,6 @@ import lombok.Data;
 @Schema(description = "DTO de entrada para actualizar el perfil del usuario. Los campos nulos no se actualizan.")
 public class UsuarioUpdateRequest {
 
-    @Schema(description = "Rol Único Tributario (opcional para actualizar).", example = "12345678-9")
-    private String rut;
-
     @Schema(description = "Nombres de pila del usuario (opcional para actualizar).", example = "Juan Pablo")
     private String nombres;
 

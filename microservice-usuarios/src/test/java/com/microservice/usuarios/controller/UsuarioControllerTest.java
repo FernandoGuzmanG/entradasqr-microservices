@@ -58,10 +58,8 @@ public class UsuarioControllerTest {
 
         // Inicialización del DTO de respuesta (simulando el usuario ya creado)
         usuarioResponse = UsuarioResponse.builder()
-                .idUsuario(userId)
                 .correo(CORREO_TEST)
                 .nombres("Test")
-                .estado(Usuario.EstadoUsuario.Activo)
                 .build();
 
         // Inicialización de la entidad Usuario (para endpoints internos)
@@ -198,10 +196,8 @@ public class UsuarioControllerTest {
     void updateProfile_debeRetornar200_yUsuarioResponseActualizado() throws Exception {
         // Arrange
         UsuarioResponse updatedResponse = UsuarioResponse.builder()
-                .idUsuario(userId)
                 .nombres(updateRequest.getNombres())
                 .correo(CORREO_TEST)
-                .estado(Usuario.EstadoUsuario.Activo)
                 .build();
 
         when(usuarioService.updateProfile(eq(userId), any(UsuarioUpdateRequest.class))).thenReturn(updatedResponse);

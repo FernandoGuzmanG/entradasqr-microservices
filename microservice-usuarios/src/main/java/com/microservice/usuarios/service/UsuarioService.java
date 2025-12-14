@@ -25,13 +25,11 @@ public class UsuarioService {
 
     private UsuarioResponse mapToResponse(Usuario usuario) {
         return UsuarioResponse.builder()
-                .idUsuario(usuario.getIdUsuario())
                 .correo(usuario.getCorreo())
                 .nombres(usuario.getNombres())
                 .apellidos(usuario.getApellidos())
                 .rut(usuario.getRut())
                 .telefono(usuario.getTelefono())
-                .estado(usuario.getEstado())
                 .build();
     }
 
@@ -85,9 +83,6 @@ public class UsuarioService {
     public UsuarioResponse updateProfile(Long idUsuario, UsuarioUpdateRequest request) {
         Usuario usuario = getUsuarioById(idUsuario);
 
-        if (request.getRut() != null) {
-            usuario.setRut(request.getRut());
-        }
         if (request.getNombres() != null) {
             usuario.setNombres(request.getNombres());
         }
