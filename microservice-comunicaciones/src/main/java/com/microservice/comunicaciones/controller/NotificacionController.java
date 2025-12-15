@@ -2,6 +2,9 @@ package com.microservice.comunicaciones.controller;
 
 import com.microservice.comunicaciones.dto.EnvioEntradasRequest;
 import com.microservice.comunicaciones.service.NotificacionService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,12 +16,22 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/notificaciones")
 @RequiredArgsConstructor
+@Tag(name = "Comunicaciones y Notificaciones", description = "Gestión del envío de correos electrónicos transaccionales.")
 public class NotificacionController {
 
     private final NotificacionService notificacionService;
 
     // Endpoint de prueba que simula la recepción del mensaje del Broker/Ticketing
     @PostMapping("/enviar-entradas")
+    @Operation(
+            summary = "Enviar Entradas por Correo (Uso Feign Client)",
+            description = "Recibe la solicitud del microservicio de Ticketing para generar y enviar los códigos QR de las entradas por correo electrónico al invitado.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Solicitud de envío procesada con éxito."),
+                    @ApiResponse(responseCode = "400", description = "No se proporcionaron entradas o datos de solicitud inválidos."),
+                    @ApiResponse(responseCode = "500", description = "Fallo en el envío (ej: error de conexión SMTP, error interno del servicio).")
+            }
+    )
     public ResponseEntity<String> enviarEntradas(@RequestBody EnvioEntradasRequest request) {
 
         if (request.getTickets() == null || request.getTickets().isEmpty()) {
@@ -31,8 +44,7 @@ public class NotificacionController {
 
             return ResponseEntity.ok("Solicitud de envío procesada con éxito.");
         } catch (Exception e) {
-            // Aquí vemos el error real de la conexión SMTP
-            return new ResponseEntity("Fallo en el envío: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR); // 500
+            return new ResponseEntity("Fallo en el envío: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR); 
         }
     }
 }

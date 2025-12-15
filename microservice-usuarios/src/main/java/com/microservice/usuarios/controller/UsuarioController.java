@@ -1,5 +1,6 @@
 package com.microservice.usuarios.controller;
 
+import com.microservice.usuarios.dto.ChangePasswordRequest;
 import com.microservice.usuarios.dto.LoginRequest;
 import com.microservice.usuarios.dto.LoginResponse; // Importar el nuevo DTO
 import com.microservice.usuarios.dto.UsuarioRegistroRequest;
@@ -143,5 +144,30 @@ public class UsuarioController {
 
         UsuarioResponse updatedProfile = usuarioService.updateProfile(id, request);
         return ResponseEntity.ok(updatedProfile);
+    }
+
+    @Operation(
+            summary = "Cambiar Contraseña",
+            description = "Permite al usuario cambiar su contraseña actual validando la anterior y confirmando la nueva.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Contraseña actualizada con éxito."),
+                    @ApiResponse(responseCode = "401", description = "Token o ID de usuario faltante."),
+                    @ApiResponse(responseCode = "400", description = "Contraseña actual incorrecta, contraseñas nuevas no coinciden o formato inválido."),
+                    @ApiResponse(responseCode = "404", description = "Usuario no encontrado.")
+            }
+    )
+    @PostMapping("/change-password")
+    public ResponseEntity<Void> changePassword(
+            @Parameter(description = "ID del usuario inyectado por el Gateway.", required = true)
+            @RequestHeader(value = "X-User-ID", required = false) Long id,
+            @RequestBody ChangePasswordRequest request) {
+
+        if (id == null) {
+            return new ResponseEntity("ID de usuario (X-User-ID) requerido para cambiar la contraseña.", HttpStatus.UNAUTHORIZED);
+        }
+
+        usuarioService.changePassword(id, request);
+        
+        return ResponseEntity.ok().build();
     }
 }

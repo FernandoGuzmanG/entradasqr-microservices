@@ -1,5 +1,6 @@
 package com.microservice.usuarios.service;
 
+import com.microservice.usuarios.dto.ChangePasswordRequest;
 import com.microservice.usuarios.dto.LoginResponse;
 import com.microservice.usuarios.dto.UsuarioRegistroRequest;
 import com.microservice.usuarios.dto.UsuarioResponse;
@@ -97,5 +98,24 @@ public class UsuarioService {
         Usuario updatedUser = usuarioRepository.save(usuario);
 
         return mapToResponse(updatedUser);
+    }
+
+    public void changePassword(Long idUsuario, ChangePasswordRequest request) {
+        Usuario usuario = getUsuarioById(idUsuario);
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), usuario.getClaveHash())) {
+            throw new IllegalArgumentException("La contraseña actual es incorrecta.");
+        }
+
+        if (!request.getNewPassword().equals(request.getConfirmationPassword())) {
+            throw new IllegalArgumentException("La nueva contraseña y la confirmación no coinciden.");
+        }
+
+        if (request.getNewPassword().length() < 8 || request.getNewPassword().length() > 16) {
+            throw new IllegalArgumentException("La nueva contraseña debe tener entre 8 y 16 caracteres.");
+        }
+
+        usuario.setClaveHash(passwordEncoder.encode(request.getNewPassword()));
+        usuarioRepository.save(usuario);
     }
 }

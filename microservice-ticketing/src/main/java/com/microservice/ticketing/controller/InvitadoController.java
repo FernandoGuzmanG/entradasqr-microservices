@@ -1,10 +1,14 @@
 package com.microservice.ticketing.controller;
 
+import com.microservice.ticketing.dto.EmisionMasivaResponse;
 import com.microservice.ticketing.dto.InvitadoRequest;
 import com.microservice.ticketing.model.Invitado;
+import com.microservice.ticketing.model.Invitado.EstadoEnvio;
 import com.microservice.ticketing.service.InvitadoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -178,28 +182,55 @@ public class InvitadoController {
     @PostMapping("/emitir/tipo-entrada/{idTipoEntrada}")
     @Operation(summary = "Emisión Masiva Automática por Tipo de Entrada.",
             description = "Busca TODOS los invitados de un tipo de entrada que estén PENDIENTES o con ERROR y procesa su emisión. EXCLUSIVO OWNER.")
-    @ApiResponse(responseCode = "200", description = "Lista de invitados procesados.")
+    @ApiResponse(responseCode = "200", description = "Resumen de la emisión masiva (total entradas, enviadas, fallidas).",
+            content = @Content(schema = @Schema(implementation = EmisionMasivaResponse.class)))
     @ApiResponse(responseCode = "204", description = "No había invitados pendientes para procesar.")
     @ApiResponse(responseCode = "403", description = "Acceso denegado. No es el Owner.")
     @ApiResponse(responseCode = "400", description = "Error de stock insuficiente.")
-    public ResponseEntity<List<Invitado>> emitirEntradasMasivasPorTipo(
+    public ResponseEntity<EmisionMasivaResponse> emitirEntradasMasivasPorTipo(
             @Parameter(description = "ID del Tipo de Entrada.")
             @PathVariable Long idTipoEntrada,
+            
             @Parameter(description = "ID del usuario Owner del evento.", required = true)
             @RequestHeader(value = "X-User-ID") Long ownerId) {
         
         try {
+            // El servicio procesa y devuelve la lista de invitados actualizados
             List<Invitado> invitadosProcesados = invitadoService.emitirEntradasMasivas(idTipoEntrada, ownerId);
             
             if (invitadosProcesados.isEmpty()) {
                 return ResponseEntity.noContent().build();
             }
-            return ResponseEntity.ok(invitadosProcesados); // 200 OK
+
+            // CORRECCIÓN: Sumar la cantidad de entradas, no contar invitados.
+            int enviadas = invitadosProcesados.stream()
+                    .filter(inv -> inv.getEstadoEnvio() == EstadoEnvio.ENVIADO)
+                    .mapToInt(Invitado::getCantidad) // Sumamos las entradas de cada invitado
+                    .sum();
+            
+            int fallidas = invitadosProcesados.stream()
+                    .filter(inv -> inv.getEstadoEnvio() == EstadoEnvio.ERROR_ENVIO)
+                    .mapToInt(Invitado::getCantidad) // Sumamos las entradas fallidas
+                    .sum();
+
+            int totalEntradas = invitadosProcesados.stream()
+                    .mapToInt(Invitado::getCantidad)
+                    .sum();
+
+            // Construir el DTO de respuesta
+            EmisionMasivaResponse response = EmisionMasivaResponse.builder()
+                    .mensaje("Proceso de emisión completado.")
+                    .totalProcesados(totalEntradas)
+                    .enviadas(enviadas)
+                    .fallidas(fallidas)
+                    .build();
+
+            return ResponseEntity.ok(response);
             
         } catch (SecurityException e) {
-            return new ResponseEntity(HttpStatus.FORBIDDEN); // 403
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN); // 403
         } catch (RuntimeException e) {
-            return new ResponseEntity(HttpStatus.BAD_REQUEST); // 400 (Stock insuficiente)
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST); // 400
         }
     }
 }
