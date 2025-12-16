@@ -20,6 +20,8 @@ public class CatalogoPermiso {
     private Long idPermiso;
 
     @Column(name = "nombre_permiso", unique = true, nullable = false)
-    @Schema(description = "Nombre clave del permiso (e.g., escanear_entrada, registrar_invitados).", example = "escanear_entrada", required = true)
+    @Schema(description = "Nombre clave del permiso (e.g., escanear_entrada, registrar_invitados).", 
+            example = "escanear_entrada", 
+            requiredMode = Schema.RequiredMode.REQUIRED) 
     private String nombrePermiso;
 }

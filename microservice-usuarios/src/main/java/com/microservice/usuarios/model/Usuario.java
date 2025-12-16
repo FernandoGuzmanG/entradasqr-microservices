@@ -23,23 +23,23 @@ public class Usuario {
     private Long idUsuario;
 
     @Column(name = "rut", nullable = false, unique = true, length = 15)
-    @Schema(description = "Rol Único Tributario (identificador nacional).", example = "12345678-9", required = true)
+    @Schema(description = "Rol Único Tributario (identificador nacional).", example = "12345678-9", requiredMode = Schema.RequiredMode.REQUIRED)
     private String rut;
 
     @Column(name = "correo", nullable = false, unique = true, length = 255)
-    @Schema(description = "Correo electrónico del usuario, usado para login.", example = "ferguzq@gmail.com", required = true)
+    @Schema(description = "Correo electrónico del usuario, usado para login.", example = "ferguzq@gmail.com", requiredMode = Schema.RequiredMode.REQUIRED)
     private String correo;
 
     @Column(name = "clave_hash", nullable = false, length = 255)
-    @Schema(description = "Hash de la clave.", accessMode = Schema.AccessMode.WRITE_ONLY, required = true)
+    @Schema(description = "Hash de la clave.", accessMode = Schema.AccessMode.WRITE_ONLY, requiredMode = Schema.RequiredMode.REQUIRED)
     private String claveHash;
 
     @Column(name = "nombres", nullable = false, length = 100)
-    @Schema(description = "Nombres del usuario.", example = "Fernando Alonso", required = true)
+    @Schema(description = "Nombres del usuario.", example = "Fernando Alonso", requiredMode = Schema.RequiredMode.REQUIRED)
     private String nombres;
 
     @Column(name = "apellidos", nullable = false, length = 100)
-    @Schema(description = "Apellidos del usuario.", example = "Guzmán González", required = true)
+    @Schema(description = "Apellidos del usuario.", example = "Guzmán González", requiredMode = Schema.RequiredMode.REQUIRED)
     private String apellidos;
 
     @Column(name = "telefono", length = 20)
@@ -52,7 +52,7 @@ public class Usuario {
 
     @Column(name = "estado", nullable = false, length = 15)
     @Enumerated(EnumType.STRING)
-    @Schema(description = "Estado actual del usuario en el sistema.", required = true)
+    @Schema(description = "Estado actual del usuario en el sistema.", requiredMode = Schema.RequiredMode.REQUIRED)
     private EstadoUsuario estado;
 
     @Schema(description = "Posibles estados en los que puede estar un usuario.")

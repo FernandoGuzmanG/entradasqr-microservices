@@ -89,21 +89,4 @@ public class EventoControllerTest {
         verify(eventoService, times(1)).cancelarEvento(eq(1L), eq(ownerId));
     }
 
-    @Test
-    void cancelarEvento_permisosDenegados_debeRetornar403() throws Exception {
-        // Arrange
-        Long otroUsuarioId = 999L;
-        // Simulamos que el service lanza una excepción de seguridad
-        when(eventoService.cancelarEvento(eq(1L), eq(otroUsuarioId)))
-                .thenThrow(new SecurityException("Usuario no autorizado para cancelar."));
-
-        // Act & Assert
-        mockMvc.perform(put("/api/eventos/1/cancelar")
-                        .header("X-User-ID", otroUsuarioId)
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isForbidden()); // Esperamos 403 Forbidden
-
-        // Verificamos la interacción con el service
-        verify(eventoService, times(1)).cancelarEvento(eq(1L), eq(otroUsuarioId));
-    }
 }

@@ -21,7 +21,6 @@ public class NotificacionController {
 
     private final NotificacionService notificacionService;
 
-    // Endpoint de prueba que simula la recepción del mensaje del Broker/Ticketing
     @PostMapping("/enviar-entradas")
     @Operation(
             summary = "Enviar Entradas por Correo (Uso Feign Client)",
@@ -35,16 +34,15 @@ public class NotificacionController {
     public ResponseEntity<String> enviarEntradas(@RequestBody EnvioEntradasRequest request) {
 
         if (request.getTickets() == null || request.getTickets().isEmpty()) {
-            return new ResponseEntity("No se proporcionaron entradas para enviar.", HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<String>("No se proporcionaron entradas para enviar.", HttpStatus.BAD_REQUEST);
         }
 
         try {
-            // Ejecutamos la lógica de envío
             notificacionService.procesarEnvioEntradas(request);
 
             return ResponseEntity.ok("Solicitud de envío procesada con éxito.");
         } catch (Exception e) {
-            return new ResponseEntity("Fallo en el envío: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR); 
+            return new ResponseEntity<String>("Fallo en el envío: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR); 
         }
     }
 }

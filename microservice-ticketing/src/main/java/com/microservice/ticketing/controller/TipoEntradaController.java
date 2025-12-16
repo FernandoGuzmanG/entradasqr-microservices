@@ -26,7 +26,7 @@ public class TipoEntradaController {
 
     @PostMapping
     @Operation(summary = "Crea un nuevo tipo de ticket.",
-            description = "Solo el Owner del evento puede crear un nuevo tipo de entrada.")
+               description = "Solo el Owner del evento puede crear un nuevo tipo de entrada.")
     @ApiResponse(responseCode = "201", description = "Tipo de entrada creado con éxito.")
     @ApiResponse(responseCode = "403", description = "Acceso denegado. El usuario no es el Owner del evento.")
     @ApiResponse(responseCode = "400", description = "Error de validación de datos.")
@@ -35,14 +35,9 @@ public class TipoEntradaController {
             @Parameter(description = "ID del usuario propietario del evento (Owner).", required = true)
             @RequestHeader(value = "X-User-ID") Long ownerId) {
 
-        try {
-            TipoEntrada nuevoTipo = tipoEntradaService.crearTipoEntrada(request, ownerId);
-            return new ResponseEntity<>(nuevoTipo, HttpStatus.CREATED); // 201
-        } catch (SecurityException e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.FORBIDDEN); // 403
-        } catch (Exception e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST); // 400
-        }
+        // Propaga SecurityException y IllegalArgumentException
+        TipoEntrada nuevoTipo = tipoEntradaService.crearTipoEntrada(request, ownerId);
+        return new ResponseEntity<>(nuevoTipo, HttpStatus.CREATED); // 201
     }
 
     @GetMapping("/{idTipoEntrada}")
@@ -52,12 +47,10 @@ public class TipoEntradaController {
     public ResponseEntity<TipoEntrada> getTipoEntradaById(
             @Parameter(description = "ID del tipo de entrada a buscar.")
             @PathVariable Long idTipoEntrada) {
-        try {
-            TipoEntrada tipo = tipoEntradaService.findById(idTipoEntrada);
-            return ResponseEntity.ok(tipo); // 200
-        } catch (RuntimeException e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.NOT_FOUND); // 404
-        }
+        
+        // Propaga RuntimeException/NoSuchElementException (404)
+        TipoEntrada tipo = tipoEntradaService.findById(idTipoEntrada);
+        return ResponseEntity.ok(tipo); // 200
     }
 
     @GetMapping("/evento/{idEvento}")
@@ -67,6 +60,7 @@ public class TipoEntradaController {
     public ResponseEntity<List<TipoEntrada>> buscarTiposPorEvento(
             @Parameter(description = "ID del evento.")
             @PathVariable Long idEvento) {
+        
         List<TipoEntrada> tipos = tipoEntradaService.buscarTiposPorEvento(idEvento);
         if (tipos.isEmpty()) {
             return ResponseEntity.noContent().build(); // 204
@@ -81,6 +75,7 @@ public class TipoEntradaController {
     public ResponseEntity<List<TipoEntrada>> buscarTiposPorNombre(
             @Parameter(description = "Parte del nombre a buscar.")
             @RequestParam String nombre) {
+        
         List<TipoEntrada> tipos = tipoEntradaService.buscarTiposPorNombre(nombre);
         if (tipos.isEmpty()) {
             return ResponseEntity.noContent().build(); // 204
@@ -90,7 +85,7 @@ public class TipoEntradaController {
 
     @PutMapping("/{idTipoEntrada}")
     @Operation(summary = "Actualiza un tipo de entrada existente.",
-            description = "Permite al Owner actualizar stock, precio y fechas de venta.")
+               description = "Permite al Owner actualizar stock, precio y fechas de venta.")
     @ApiResponse(responseCode = "200", description = "Tipo de entrada actualizado con éxito.")
     @ApiResponse(responseCode = "403", description = "Acceso denegado. El usuario no es el Owner.")
     @ApiResponse(responseCode = "404", description = "Tipo de entrada no encontrado.")
@@ -101,19 +96,14 @@ public class TipoEntradaController {
             @Parameter(description = "ID del usuario propietario del evento (Owner).", required = true)
             @RequestHeader(value = "X-User-ID") Long ownerId) {
 
-        try {
-            TipoEntrada modificado = tipoEntradaService.actualizarTipoEntrada(idTipoEntrada, ownerId, request);
-            return ResponseEntity.ok(modificado); // 200
-        } catch (SecurityException e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.FORBIDDEN); // 403
-        } catch (RuntimeException e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.NOT_FOUND); // 404
-        }
+        // Propaga SecurityException y RuntimeException/NoSuchElementException
+        TipoEntrada modificado = tipoEntradaService.actualizarTipoEntrada(idTipoEntrada, ownerId, request);
+        return ResponseEntity.ok(modificado); // 200
     }
 
     @DeleteMapping("/{idTipoEntrada}")
     @Operation(summary = "Elimina un tipo de entrada.",
-            description = "Solo el Owner puede eliminar. Esto borra de forma permanente todas las entradas emitidas y los registros de invitados asociados.")
+               description = "Solo el Owner puede eliminar. Esto borra de forma permanente todas las entradas emitidas y los registros de invitados asociados.")
     @ApiResponse(responseCode = "204", description = "Tipo de entrada eliminado con éxito.")
     @ApiResponse(responseCode = "403", description = "Acceso denegado. El usuario no es el Owner.")
     @ApiResponse(responseCode = "404", description = "Tipo de entrada no encontrado.")
@@ -123,13 +113,8 @@ public class TipoEntradaController {
             @Parameter(description = "ID del usuario propietario del evento (Owner).", required = true)
             @RequestHeader(value = "X-User-ID") Long ownerId) {
 
-        try {
-            tipoEntradaService.eliminarTipoEntrada(idTipoEntrada, ownerId);
-            return ResponseEntity.noContent().build(); // 204
-        } catch (SecurityException e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.FORBIDDEN); // 403
-        } catch (RuntimeException e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.NOT_FOUND); // 404
-        }
+        // Propaga SecurityException y RuntimeException/NoSuchElementException
+        tipoEntradaService.eliminarTipoEntrada(idTipoEntrada, ownerId);
+        return ResponseEntity.noContent().build(); // 204
     }
 }

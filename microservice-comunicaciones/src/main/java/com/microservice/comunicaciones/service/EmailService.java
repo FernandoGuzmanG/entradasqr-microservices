@@ -85,7 +85,7 @@ public class EmailService {
     }
 
     // NUEVO MÉTODO AUXILIAR PARA GENERAR LA IMAGEN QR
-    private byte[] generateQRCodeImage(String text, int width, int height) throws Exception {
+    protected byte[] generateQRCodeImage(String text, int width, int height) throws Exception {
         QRCodeWriter qrCodeWriter = new QRCodeWriter();
         BitMatrix bitMatrix = qrCodeWriter.encode(text, BarcodeFormat.QR_CODE, width, height);
 

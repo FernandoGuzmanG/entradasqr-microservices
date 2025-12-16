@@ -49,12 +49,9 @@ public class EventoController {
             @RequestParam boolean aceptar,
             @RequestHeader("X-User-ID") Long userId) {
         
-        try {
-            eventoService.responderInvitacion(idEvento, userId, aceptar);
-            return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException | java.util.NoSuchElementException e) {
-            return ResponseEntity.badRequest().build();
-        }
+        // Propagamos NoSuchElementException e IllegalArgumentException (manejo por Global Handler).
+        eventoService.responderInvitacion(idEvento, userId, aceptar);
+        return ResponseEntity.ok().build();
     }
 
 
@@ -73,6 +70,7 @@ public class EventoController {
             @Parameter(description = "ID del usuario creador (Owner) inyectado por el Gateway.")
             @RequestHeader(value = "X-User-ID") Long ownerId) {
 
+        // Propagamos IllegalArgumentException (manejo por Global Handler).
         Evento nuevoEvento = eventoService.crearEvento(evento, ownerId);
         return new ResponseEntity<>(nuevoEvento, HttpStatus.CREATED);
     }
@@ -93,14 +91,9 @@ public class EventoController {
             @Parameter(description = "ID del usuario editor (debe ser el Owner).")
             @RequestHeader(value = "X-User-ID") Long editorId) {
 
-        try {
-            Evento eventoModificado = eventoService.actualizarEvento(idEvento, editorId, eventoActualizado);
-            return ResponseEntity.ok(eventoModificado);
-        } catch (SecurityException e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.FORBIDDEN);
-        } catch (Exception e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.NOT_FOUND);
-        }
+        // Propagamos SecurityException, NoSuchElementException, IllegalArgumentException.
+        Evento eventoModificado = eventoService.actualizarEvento(idEvento, editorId, eventoActualizado);
+        return ResponseEntity.ok(eventoModificado);
     }
 
     @Operation(
@@ -115,6 +108,7 @@ public class EventoController {
     public ResponseEntity<Evento> getEventoById(
             @Parameter(description = "ID del evento a consultar.") @PathVariable("id") Long idEvento) {
 
+        // Propagamos NoSuchElementException (404).
         Evento evento = eventoService.findById(idEvento);
         return ResponseEntity.ok(evento);
     }
@@ -135,14 +129,9 @@ public class EventoController {
             @Parameter(description = "ID del usuario que solicita la cancelación (debe ser el Owner).")
             @RequestHeader(value = "X-User-ID") Long ownerId) {
 
-        try {
-            Evento eventoCancelado = eventoService.cancelarEvento(id, ownerId);
-            return ResponseEntity.ok(eventoCancelado);
-        } catch (SecurityException e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.FORBIDDEN);
-        } catch (Exception e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
-        }
+        // Propagamos SecurityException, NoSuchElementException, IllegalArgumentException.
+        Evento eventoCancelado = eventoService.cancelarEvento(id, ownerId);
+        return ResponseEntity.ok(eventoCancelado);
     }
 
 
@@ -160,7 +149,7 @@ public class EventoController {
             @RequestHeader("X-User-ID") Long usuarioId,
 
             @Parameter(description = "Filtros de búsqueda por nombre y/o relación (OWNER/STAFF).",
-                    schema = @Schema(implementation = EventoFiltroRequest.class))
+                       schema = @Schema(implementation = EventoFiltroRequest.class))
             EventoFiltroRequest filtros) {
 
         List<EventoResponse> eventos = eventoService.buscarEventosFiltrados(usuarioId, filtros);
@@ -177,7 +166,7 @@ public class EventoController {
             responses = {
                     @ApiResponse(responseCode = "201", description = "Staff asignado/actualizado con éxito."),
                     @ApiResponse(responseCode = "403", description = "Acceso denegado. Solo el Owner puede asignar Staff."),
-                    @ApiResponse(responseCode = "400", description = "ID de Evento o Permisos Inválidos.")
+                    @ApiResponse(responseCode = "400", description = "ID de Evento, Permisos, o Correo de Usuario Inválidos.")
             }
     )
     @PostMapping("/staff/asignar")
@@ -186,14 +175,9 @@ public class EventoController {
             @Parameter(description = "ID del usuario Owner.")
             @RequestHeader(value = "X-User-ID") Long ownerId) {
 
-        try {
-            StaffEvento staffAsignado = eventoService.asignarStaffYPermisos(request, ownerId);
-            return new ResponseEntity<>(staffAsignado, HttpStatus.CREATED);
-        } catch (SecurityException e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.FORBIDDEN);
-        } catch (Exception e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
-        }
+        // Propagamos SecurityException, NoSuchElementException, IllegalArgumentException.
+        StaffEvento staffAsignado = eventoService.asignarStaffYPermisos(request, ownerId);
+        return new ResponseEntity<>(staffAsignado, HttpStatus.CREATED);
     }
 
     @Operation(
@@ -211,14 +195,9 @@ public class EventoController {
             @Parameter(description = "ID del usuario Staff a revocar.") @PathVariable("idStaffUsuario") Long idStaffUsuario,
             @Parameter(description = "ID del usuario Owner.") @RequestHeader(value = "X-User-ID") Long ownerId) {
 
-        try {
-            eventoService.revocarStaff(idEvento, idStaffUsuario, ownerId);
-            return ResponseEntity.noContent().build();
-        } catch (SecurityException e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.FORBIDDEN);
-        } catch (Exception e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.NOT_FOUND);
-        }
+        // Propagamos SecurityException y NoSuchElementException.
+        eventoService.revocarStaff(idEvento, idStaffUsuario, ownerId);
+        return ResponseEntity.noContent().build();
     }
 
     @Operation(
@@ -273,15 +252,8 @@ public class EventoController {
             @Parameter(description = "ID del usuario que realiza la solicitud (debe ser el Owner). Inyectado por el Gateway.", required = true)
             @RequestHeader(value = "X-User-ID") Long userId) {
 
-        try {
-            List<StaffMemberResponse> staffList = eventoService.listarStaffPorEvento(idEvento, userId);
-            return ResponseEntity.ok(staffList);
-        } catch (SecurityException e) {
-            // Retorna 403 si el usuario no es el Owner
-            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
-        } catch (Exception e) {
-            // Retorna 404 si el evento no existe o hay un error de inconsistencia
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+        // Propagamos SecurityException y NoSuchElementException/RuntimeException.
+        List<StaffMemberResponse> staffList = eventoService.listarStaffPorEvento(idEvento, userId);
+        return ResponseEntity.ok(staffList);
     }
 }

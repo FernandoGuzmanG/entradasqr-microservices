@@ -31,7 +31,7 @@ public class StaffEvento {
     private Evento evento;
 
     @Column(name = "usuario_id", nullable = false)
-    @Schema(description = "ID del usuario asignado como Staff.", example = "105", required = true)
+    @Schema(description = "ID del usuario asignado como Staff.", example = "105", requiredMode = Schema.RequiredMode.REQUIRED)
     private Long usuarioId;
 
     @Column(name = "fecha_asignacion")
@@ -39,7 +39,7 @@ public class StaffEvento {
     private LocalDateTime fechaAsignacion;
 
     @Column(nullable = false)
-    @Schema(description = "Indica si el staff está activo en el evento (debe haber aceptado la invitación).", required = true)
+    @Schema(description = "Indica si el staff está activo en el evento (debe haber aceptado la invitación).", requiredMode = Schema.RequiredMode.REQUIRED)
     private boolean activo;
 
     @Enumerated(EnumType.STRING)

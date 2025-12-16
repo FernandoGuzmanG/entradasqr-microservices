@@ -24,11 +24,11 @@ public class Evento {
     private Long idEvento;
 
     @Column(name = "owner_id", nullable = false)
-    @Schema(description = "ID del usuario que creó y administra el evento (Owner).", example = "101", required = true)
+    @Schema(description = "ID del usuario que creó y administra el evento (Owner).", example = "101", requiredMode = Schema.RequiredMode.REQUIRED)
     private Long ownerId;
 
     @Column(nullable = false)
-    @Schema(description = "Nombre comercial del evento.", example = "Concierto de Verano", required = true)
+    @Schema(description = "Nombre comercial del evento.", example = "Concierto de Verano", requiredMode = Schema.RequiredMode.REQUIRED)
     private String nombre;
 
     @Schema(description = "Categoría del evento.", example = "Música/Festival")
@@ -42,11 +42,11 @@ public class Evento {
     private String direccion;
 
     @Column(nullable = false)
-    @Schema(description = "Fecha en que se realiza el evento.", example = "2024-12-31", required = true)
+    @Schema(description = "Fecha en que se realiza el evento.", example = "2024-12-31", requiredMode = Schema.RequiredMode.REQUIRED)
     private LocalDate fecha;
 
     @Column(name = "hora_inicio", nullable = false)
-    @Schema(description = "Hora de inicio del evento.", example = "20:00:00", required = true)
+    @Schema(description = "Hora de inicio del evento.", example = "20:00:00", requiredMode = Schema.RequiredMode.REQUIRED)
     private LocalTime horaInicio;
 
     @Column(name = "hora_cierre_puertas")
@@ -63,7 +63,7 @@ public class Evento {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    @Schema(description = "Estado actual del evento (Publicado, Cancelado, etc.).", required = true)
+    @Schema(description = "Estado actual del evento (Publicado, Cancelado, etc.).", requiredMode = Schema.RequiredMode.REQUIRED)
     private EstadoEvento estado;
 
     @Schema(description = "Posibles estados en los que puede estar un Evento.")

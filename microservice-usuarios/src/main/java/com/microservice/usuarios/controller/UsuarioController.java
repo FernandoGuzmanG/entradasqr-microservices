@@ -27,6 +27,14 @@ public class UsuarioController {
 
     private final UsuarioService usuarioService;
 
+    // --- HELPER para manejar ID faltante ---
+    private void checkUserId(Long id) {
+        if (id == null) {
+            // Se lanza SecurityException, que será mapeada a 401/403 por GlobalExceptionHandler.
+            throw new SecurityException("ID de usuario (X-User-ID) requerido para esta operación.");
+        }
+    }
+
     @Operation(
             summary = "Registrar Nuevo Usuario",
             description = "Crea una nueva cuenta de usuario en el sistema. Retorna el perfil básico del usuario creado.",
@@ -109,12 +117,10 @@ public class UsuarioController {
     @GetMapping("/perfil")
     public ResponseEntity<UsuarioResponse> getProfile(
             @Parameter(description = "ID del usuario inyectado por el Gateway.", required = true)
-            @RequestHeader(value = "X-User-ID", required = false) Long id) { // Hacemos required = false para manejar el error 401 aquí
+            @RequestHeader(value = "X-User-ID", required = false) Long id) {
 
-        if (id == null) {
-            // Manejamos la ausencia de ID de forma explícita (simulando fallo de autenticación/gateway)
-            return new ResponseEntity("ID de usuario (X-User-ID) requerido para acceder al perfil.", HttpStatus.UNAUTHORIZED);
-        }
+        // Propagamos la excepción si ID es nulo
+        checkUserId(id);
 
         UsuarioResponse profile = usuarioService.getProfile(id);
         return ResponseEntity.ok(profile);
@@ -134,13 +140,11 @@ public class UsuarioController {
     @PutMapping("/perfil")
     public ResponseEntity<UsuarioResponse> updateProfile(
             @Parameter(description = "ID del usuario inyectado por el Gateway.", required = true)
-            @RequestHeader(value = "X-User-ID", required = false) Long id, // Hacemos required = false para manejar el error 401 aquí
+            @RequestHeader(value = "X-User-ID", required = false) Long id,
             @RequestBody UsuarioUpdateRequest request) {
 
-        if (id == null) {
-            // Manejamos la ausencia de ID de forma explícita (simulando fallo de autenticación/gateway)
-            return new ResponseEntity("ID de usuario (X-User-ID) requerido para actualizar el perfil.", HttpStatus.UNAUTHORIZED);
-        }
+        // Propagamos la excepción si ID es nulo
+        checkUserId(id);
 
         UsuarioResponse updatedProfile = usuarioService.updateProfile(id, request);
         return ResponseEntity.ok(updatedProfile);
@@ -162,10 +166,10 @@ public class UsuarioController {
             @RequestHeader(value = "X-User-ID", required = false) Long id,
             @RequestBody ChangePasswordRequest request) {
 
-        if (id == null) {
-            return new ResponseEntity("ID de usuario (X-User-ID) requerido para cambiar la contraseña.", HttpStatus.UNAUTHORIZED);
-        }
+        // Propagamos la excepción si ID es nulo
+        checkUserId(id);
 
+        // La lógica de negocio propaga las excepciones 400 y 404
         usuarioService.changePassword(id, request);
         
         return ResponseEntity.ok().build();

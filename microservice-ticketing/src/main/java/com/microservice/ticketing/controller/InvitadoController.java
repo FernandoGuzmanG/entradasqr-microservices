@@ -63,14 +63,10 @@ public class InvitadoController {
             @RequestBody InvitadoRequest request,
             @Parameter(description = "ID del usuario (Owner o Staff) que realiza el registro.", required = true)
             @RequestHeader(value = "X-User-ID") Long usuarioId) {
-        try {
-            Invitado invitado = invitadoService.crearInvitado(request, usuarioId);
-            return new ResponseEntity<>(invitado, HttpStatus.CREATED); // 201
-        } catch (SecurityException e) {
-            return new ResponseEntity(HttpStatus.FORBIDDEN); // 403
-        } catch (Exception e) {
-            return new ResponseEntity(HttpStatus.BAD_REQUEST); // 400
-        }
+        
+        // Propaga SecurityException y IllegalArgumentException
+        Invitado invitado = invitadoService.crearInvitado(request, usuarioId);
+        return new ResponseEntity<>(invitado, HttpStatus.CREATED); // 201
     }
 
     @PutMapping("/{idInvitado}")
@@ -86,14 +82,9 @@ public class InvitadoController {
             @Parameter(description = "ID del usuario (Owner o Staff).", required = true)
             @RequestHeader(value = "X-User-ID") Long usuarioId) {
 
-        try {
-            Invitado modificado = invitadoService.modificarInvitado(idInvitado, usuarioId, request);
-            return ResponseEntity.ok(modificado); // 200
-        } catch (SecurityException e) {
-            return new ResponseEntity(HttpStatus.FORBIDDEN); // 403
-        } catch (RuntimeException e) {
-            return new ResponseEntity(HttpStatus.NOT_FOUND); // 404
-        }
+        // Propaga SecurityException y NoSuchElementException
+        Invitado modificado = invitadoService.modificarInvitado(idInvitado, usuarioId, request);
+        return ResponseEntity.ok(modificado); // 200
     }
 
     @PutMapping("/{idInvitado}/cantidad")
@@ -110,14 +101,9 @@ public class InvitadoController {
             @Parameter(description = "ID del usuario (Owner o Staff).", required = true)
             @RequestHeader(value = "X-User-ID") Long usuarioId) {
 
-        try {
-            Invitado modificado = invitadoService.modificarCantidadEntradas(idInvitado, usuarioId, cantidad);
-            return ResponseEntity.ok(modificado); // 200
-        } catch (SecurityException e) {
-            return new ResponseEntity(HttpStatus.FORBIDDEN); // 403
-        } catch (RuntimeException e) {
-            return new ResponseEntity(HttpStatus.BAD_REQUEST); // 400 (por reglas de negocio)
-        }
+        // Propaga SecurityException y RuntimeException (reglas de negocio)
+        Invitado modificado = invitadoService.modificarCantidadEntradas(idInvitado, usuarioId, cantidad);
+        return ResponseEntity.ok(modificado); // 200
     }
 
     @GetMapping("/tipo-entrada/{idTipoEntrada}")
@@ -128,6 +114,7 @@ public class InvitadoController {
     public ResponseEntity<List<Invitado>> listarInvitadosPorTipoEntrada(
             @Parameter(description = "ID del tipo de entrada.")
             @PathVariable Long idTipoEntrada) {
+        
         List<Invitado> invitados = invitadoService.buscarInvitadosPorTipoEntrada(idTipoEntrada);
         if (invitados.isEmpty()) {
             return ResponseEntity.noContent().build(); // 204
@@ -146,14 +133,10 @@ public class InvitadoController {
             @PathVariable Long idInvitado,
             @Parameter(description = "ID del usuario (Owner o Staff).", required = true)
             @RequestHeader(value = "X-User-ID") Long usuarioId) {
-        try {
-            invitadoService.eliminarInvitado(idInvitado, usuarioId);
-            return ResponseEntity.noContent().build(); // 204
-        } catch (SecurityException e) {
-            return new ResponseEntity(HttpStatus.FORBIDDEN); // 403
-        } catch (RuntimeException e) {
-            return new ResponseEntity(HttpStatus.NOT_FOUND); // 404
-        }
+        
+        // Propaga SecurityException y RuntimeException/NoSuchElementException
+        invitadoService.eliminarInvitado(idInvitado, usuarioId);
+        return ResponseEntity.noContent().build(); // 204
     }
 
     // --- Endpoints de EMISIÓN (Exclusivo OWNER) ---
@@ -169,14 +152,10 @@ public class InvitadoController {
             @PathVariable Long idInvitado,
             @Parameter(description = "ID del usuario Owner del evento.", required = true)
             @RequestHeader(value = "X-User-ID") Long ownerId) {
-        try {
-            Invitado invitadoEmitido = invitadoService.emitirEntradasPorId(idInvitado, ownerId);
-            return ResponseEntity.ok(invitadoEmitido); // 200
-        } catch (SecurityException e) {
-            return new ResponseEntity(HttpStatus.FORBIDDEN); // 403
-        } catch (RuntimeException e) {
-            return new ResponseEntity(HttpStatus.BAD_REQUEST); // 400 (Stock, ya emitido)
-        }
+        
+        // Propaga SecurityException y RuntimeException
+        Invitado invitadoEmitido = invitadoService.emitirEntradasPorId(idInvitado, ownerId);
+        return ResponseEntity.ok(invitadoEmitido); // 200
     }
 
     @PostMapping("/emitir/tipo-entrada/{idTipoEntrada}")
@@ -194,43 +173,36 @@ public class InvitadoController {
             @Parameter(description = "ID del usuario Owner del evento.", required = true)
             @RequestHeader(value = "X-User-ID") Long ownerId) {
         
-        try {
-            // El servicio procesa y devuelve la lista de invitados actualizados
-            List<Invitado> invitadosProcesados = invitadoService.emitirEntradasMasivas(idTipoEntrada, ownerId);
-            
-            if (invitadosProcesados.isEmpty()) {
-                return ResponseEntity.noContent().build();
-            }
-
-            // CORRECCIÓN: Sumar la cantidad de entradas, no contar invitados.
-            int enviadas = invitadosProcesados.stream()
-                    .filter(inv -> inv.getEstadoEnvio() == EstadoEnvio.ENVIADO)
-                    .mapToInt(Invitado::getCantidad) // Sumamos las entradas de cada invitado
-                    .sum();
-            
-            int fallidas = invitadosProcesados.stream()
-                    .filter(inv -> inv.getEstadoEnvio() == EstadoEnvio.ERROR_ENVIO)
-                    .mapToInt(Invitado::getCantidad) // Sumamos las entradas fallidas
-                    .sum();
-
-            int totalEntradas = invitadosProcesados.stream()
-                    .mapToInt(Invitado::getCantidad)
-                    .sum();
-
-            // Construir el DTO de respuesta
-            EmisionMasivaResponse response = EmisionMasivaResponse.builder()
-                    .mensaje("Proceso de emisión completado.")
-                    .totalProcesados(totalEntradas)
-                    .enviadas(enviadas)
-                    .fallidas(fallidas)
-                    .build();
-
-            return ResponseEntity.ok(response);
-            
-        } catch (SecurityException e) {
-            return new ResponseEntity<>(HttpStatus.FORBIDDEN); // 403
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST); // 400
+        // Propaga SecurityException y RuntimeException
+        List<Invitado> invitadosProcesados = invitadoService.emitirEntradasMasivas(idTipoEntrada, ownerId);
+        
+        if (invitadosProcesados.isEmpty()) {
+            return ResponseEntity.noContent().build();
         }
+
+        // CORRECCIÓN: Sumar la cantidad de entradas, no contar invitados.
+        int enviadas = invitadosProcesados.stream()
+                .filter(inv -> inv.getEstadoEnvio() == EstadoEnvio.ENVIADO)
+                .mapToInt(Invitado::getCantidad)
+                .sum();
+        
+        int fallidas = invitadosProcesados.stream()
+                .filter(inv -> inv.getEstadoEnvio() == EstadoEnvio.ERROR_ENVIO)
+                .mapToInt(Invitado::getCantidad)
+                .sum();
+
+        int totalEntradas = invitadosProcesados.stream()
+                .mapToInt(Invitado::getCantidad)
+                .sum();
+
+        // Construir el DTO de respuesta
+        EmisionMasivaResponse response = EmisionMasivaResponse.builder()
+                .mensaje("Proceso de emisión completado.")
+                .totalProcesados(totalEntradas)
+                .enviadas(enviadas)
+                .fallidas(fallidas)
+                .build();
+
+        return ResponseEntity.ok(response);
     }
 }

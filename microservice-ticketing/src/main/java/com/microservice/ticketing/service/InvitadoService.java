@@ -4,7 +4,6 @@ import com.microservice.ticketing.client.EventoClient;
 import com.microservice.ticketing.client.NotificacionClient;
 import com.microservice.ticketing.dto.EnvioEntradasRequest;
 import com.microservice.ticketing.dto.EventoOwnerDTO;
-import com.microservice.ticketing.dto.InvitadoBulkRequest;
 import com.microservice.ticketing.dto.InvitadoRequest;
 import com.microservice.ticketing.model.EntradaEmitida;
 import com.microservice.ticketing.model.EntradaEmitida.EstadoUso;
